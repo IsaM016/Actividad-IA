@@ -13,9 +13,9 @@ if "messages" not in st.session_state:
 
 st.title("🤖 Chatbot con Memoria (Groq + Streamlit)")
 
-# 3. Mostrar historial previo
+# 3. Mostrar historial previo (sin mostrar el system prompt)
 for msg in st.session_state["messages"]:
-    if msg["role"] != "system":  # no mostramos el mensaje de sistema
+    if msg["role"] != "system":
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
@@ -26,10 +26,10 @@ if prompt := st.chat_input("Escribe tu mensaje..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Enviar todo el historial al modelo
+    # 5. Enviar todo el historial al modelo de Groq
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",  # ✅ Modelo actualizado
             messages=st.session_state["messages"]
         )
         respuesta = response.choices[0].message.content
@@ -39,5 +39,6 @@ if prompt := st.chat_input("Escribe tu mensaje..."):
 
         with st.chat_message("assistant"):
             st.markdown(respuesta)
+
     except Exception as e:
         st.error(f"Error con la API de Groq: {e}")
