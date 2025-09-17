@@ -1,31 +1,41 @@
 import streamlit as st
-from transformers import pipeline
+from groq import Groq
 
-# 1. Cargar el modelo solo una vez (caché)
-@st.cache_resource
-def load_model():
-    return pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+# 1. Configuración segura de la API
+api_key = st.secrets["GROQ_API_KEY"]
+client = Groq(api_key=api_key)
 
-classifier = load_model()
+# 2. Inicializar historial de la conversación
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-# 2. Interfaz de usuario
-st.title("🧠 Clasificador de Tópicos Flexible (Zero-Shot)")
+st.title("🤖 Chatbot con Memoria (Groq + Streamlit)")
 
-st.write("Escribe un texto y proporciona las categorías posibles (separadas por comas).")
+# 3. Mostrar historial en pantalla
+for msg in st.session_state["messages"]:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-texto = st.text_area("Texto a analizar:", "Messi ganó el Balón de Oro y es considerado el mejor futbolista del mundo.")
-etiquetas = st.text_input("Categorías (separadas por comas):", "deportes, política, economía, tecnología")
+# 4. Entrada del usuario
+if prompt := st.chat_input("Escribe tu mensaje..."):
+    # Añadir mensaje del usuario al historial
+    st.session_state["messages"].append({"role": "user", "content": prompt})
 
-if st.button("Clasificar"):
-    if texto and etiquetas:
-        # Convertir string a lista
-        candidate_labels = [e.strip() for e in etiquetas.split(",")]
+    # Mostrar el mensaje del usuario
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-        # 3. Clasificación
-        resultados = classifier(texto, candidate_labels)
+    # 5. Enviar historial completo al modelo
+    response = client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=st.session_state["messages"]
+    )
 
-        # 4. Mostrar resultados
-        st.subheader("Resultados de Clasificación")
-        st.bar_chart(dict(zip(resultados["labels"], resultados["scores"])))
-    else:
-        st.warning("Por favor ingresa texto y categorías.")
+    respuesta = response.choices[0].message.content
+
+    # Añadir respuesta del modelo al historial
+    st.session_state["messages"].append({"role": "assistant", "content": respuesta})
+
+    # Mostrar respuesta
+    with st.chat_message("assistant"):
+        st.markdown(respuesta)
