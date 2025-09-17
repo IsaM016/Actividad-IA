@@ -1,41 +1,43 @@
 import streamlit as st
 from groq import Groq
 
-# 1. Configuración segura de la API
+# 1. Cargar API Key de forma segura
 api_key = st.secrets["GROQ_API_KEY"]
 client = Groq(api_key=api_key)
 
-# 2. Inicializar historial de la conversación
+# 2. Inicializar historial con mensaje de sistema
 if "messages" not in st.session_state:
-    st.session_state["messages"] = []
+    st.session_state["messages"] = [
+        {"role": "system", "content": "Eres un asistente útil y conversacional."}
+    ]
 
 st.title("🤖 Chatbot con Memoria (Groq + Streamlit)")
 
-# 3. Mostrar historial en pantalla
+# 3. Mostrar historial previo
 for msg in st.session_state["messages"]:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    if msg["role"] != "system":  # no mostramos el mensaje de sistema
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-# 4. Entrada del usuario
+# 4. Entrada de usuario
 if prompt := st.chat_input("Escribe tu mensaje..."):
-    # Añadir mensaje del usuario al historial
+    # Guardar mensaje del usuario
     st.session_state["messages"].append({"role": "user", "content": prompt})
-
-    # Mostrar el mensaje del usuario
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 5. Enviar historial completo al modelo
-    response = client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=st.session_state["messages"]
-    )
+    # Enviar todo el historial al modelo
+    try:
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=st.session_state["messages"]
+        )
+        respuesta = response.choices[0].message.content
 
-    respuesta = response.choices[0].message.content
+        # Guardar respuesta del modelo
+        st.session_state["messages"].append({"role": "assistant", "content": respuesta})
 
-    # Añadir respuesta del modelo al historial
-    st.session_state["messages"].append({"role": "assistant", "content": respuesta})
-
-    # Mostrar respuesta
-    with st.chat_message("assistant"):
-        st.markdown(respuesta)
+        with st.chat_message("assistant"):
+            st.markdown(respuesta)
+    except Exception as e:
+        st.error(f"Error con la API de Groq: {e}")
